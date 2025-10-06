@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using FCG.Application.Mappings;
+using FCG.Domain.EventSourcing;
 using FCG.Domain.Interfaces;
 using FCG.Infra.Data.Repositories;
 using FCG.Application.Interfaces;
@@ -11,6 +12,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using FCG.Domain.Account;
+using FCG.Infra.Data.EventSourcing;
 using FCG.Infra.Data.Transactions;
 
 namespace FCG.Infra.Ioc
@@ -49,9 +51,11 @@ namespace FCG.Infra.Ioc
             services.AddAutoMapper(typeof(EntitiesToDTOMappingProfile));
 
             services.AddScoped<IUsuarioRepository, UsuarioRepository>();
+            services.AddScoped<IEventStoreRepository, EventStoreRepository>();
             services.AddScoped<IAuthenticate, AuthenticateService>();
             services.AddScoped<IUsuarioService,UsuarioService>();
-            services.AddScoped<IUnitOfWork, UnitOfWork>();           
+            services.AddScoped<IUnitOfWork, UnitOfWork>();
+            services.AddScoped<IEventPublisher, EventPublisher>();
 
             return services;
         }

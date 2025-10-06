@@ -3,10 +3,13 @@ using FCG.API.Models;
 using FCG.Application.DTOs;
 using FCG.Application.Interfaces;
 using FCG.Domain.Entities;
+using FCG.Domain.EventSourcing;
+using FCG.Domain.EventSourcing.Events;
 using FCG.Domain.Interfaces;
 using FCG.Domain.Notifications;
 using FCG.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -18,14 +21,16 @@ namespace FCG.Application.Services
         private readonly ILogger<UsuarioService> _logger;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly IEventPublisher _eventPublisher;
 
-        public UsuarioService(IUsuarioRepository usuarioRepository, ILogger<UsuarioService> logger, 
-            IUnitOfWork unitOfWork, IMapper mapper)
+        public UsuarioService(IUsuarioRepository usuarioRepository, ILogger<UsuarioService> logger,
+            IUnitOfWork unitOfWork, IMapper mapper, IEventPublisher eventPublisher)
         {
             _usuarioRepository = usuarioRepository;
             _unitOfWork = unitOfWork;
             _mapper = mapper;
             _logger = logger;
+            _eventPublisher = eventPublisher;
         }
 
         public async Task<DomainNotificationsResult<UsuarioViewModel>> Incluir(UsuarioDTO usuarioDTO)
@@ -64,8 +69,20 @@ namespace FCG.Application.Services
                     usuario.AlterarSenha(passwordHash, passwordSalt);
                 }
 
+                EnsureNome(usuario);
+
                 await _usuarioRepository.Incluir(usuario);
-                await _unitOfWork.Commit();
+                var commitResult = await _unitOfWork.Commit();
+
+                if (!commitResult)
+                {
+                    _logger.LogError("Falha ao salvar usuário no banco de dados: {email}", usuarioDTO.Email);
+                    resultNotifications.Notifications.Add("Não foi possível salvar o usuário.");
+                    return resultNotifications;
+                }
+
+                await _eventPublisher.PublishAsync(new UsuarioCriadoEvent(usuario.Id, usuario.Nome,
+                    usuario.EmailUsuario.EmailAddress, usuario.IsAdmin));
 
                 resultNotifications.Result = _mapper.Map<UsuarioViewModel>(usuario);
 
@@ -109,8 +126,20 @@ namespace FCG.Application.Services
                     usuario.AlterarSenha(passwordHash, passwordSalt);
                 }
 
+                EnsureNome(usuario);
+
                 _usuarioRepository.Alterar(usuario);
-                await _unitOfWork.Commit();
+                var commitResult = await _unitOfWork.Commit();
+
+                if (!commitResult)
+                {
+                    _logger.LogError("Falha ao persistir alterações do usuário: {id}", usuarioDTO.Id);
+                    resultNotifications.Notifications.Add("Não foi possível alterar o usuário.");
+                    return resultNotifications;
+                }
+
+                await _eventPublisher.PublishAsync(new UsuarioAlteradoEvent(usuario.Id, usuario.Nome,
+                    usuario.EmailUsuario.EmailAddress, usuario.IsAdmin));
 
                 resultNotifications.Result = _mapper.Map<UsuarioViewModel>(usuario);
 
@@ -141,7 +170,16 @@ namespace FCG.Application.Services
                     return resultNotifications;
                 }
 
-                await _unitOfWork.Commit();
+                var commitResult = await _unitOfWork.Commit();
+
+                if (!commitResult)
+                {
+                    _logger.LogError("Falha ao excluir usuário no banco de dados: {id}", id);
+                    resultNotifications.Notifications.Add("Não foi possível excluir o usuário.");
+                    return resultNotifications;
+                }
+
+                await _eventPublisher.PublishAsync(new UsuarioExcluidoEvent(id));
 
                 resultNotifications.Result = _mapper.Map<UsuarioViewModel>(usuario);
 
@@ -226,6 +264,34 @@ namespace FCG.Application.Services
             _logger.LogWarning("Usuário não encontrado com os dados fornecidos: {nome} | {email}", nome, email);
             resultNotifications.Notifications.Add("Usuário não encontrado com os dados fornecidos.");
             return resultNotifications;
+        }
+
+        private void EnsureNome(Usuario usuario)
+        {
+            if (!string.IsNullOrWhiteSpace(usuario.Nome))
+            {
+                return;
+            }
+
+            var fallback = usuario.EmailUsuario?.EmailAddress;
+
+            if (string.IsNullOrWhiteSpace(fallback))
+            {
+                _logger.LogWarning("Usuario sem Nome e sem Email para fallback. Não será possível definir um Nome.");
+                return;
+            }
+
+            var prop = usuario.GetType().GetProperty("Nome");
+            if (prop == null || !prop.CanWrite)
+            {
+                _logger.LogWarning("Propriedade Nome não encontrada ou não gravável em Usuario. Não será possível definir um Nome.");
+            }
+            else
+            {
+                prop.SetValue(usuario, fallback);
+            }
+
+            _logger.LogInformation("Campo Nome ausente; aplicado fallback com email.");
         }
     }
 }
