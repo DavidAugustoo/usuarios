@@ -1,6 +1,8 @@
 ﻿using System.Text;
 using FCG.API.Models;
 using FCG.Domain.Account;
+using FCG.Domain.EventSourcing;
+using FCG.Domain.EventSourcing.Events;
 using FCG.Domain.Interfaces;
 using System.Security.Claims;
 using FCG.Domain.Notifications;
@@ -20,15 +22,18 @@ namespace FCG.Application.Services
         private readonly IUsuarioService _usuarioService;
         private readonly IConfiguration _configuration;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IEventPublisher _eventPublisher;
 
-        public AuthenticateService(ILogger<AuthenticateService> logger, IConfiguration configuration, 
-            IUsuarioService usuarioService, IUsuarioRepository usuarioRepository, IUnitOfWork unitOfWork)
+        public AuthenticateService(ILogger<AuthenticateService> logger, IConfiguration configuration,
+            IUsuarioService usuarioService, IUsuarioRepository usuarioRepository, IUnitOfWork unitOfWork,
+            IEventPublisher eventPublisher)
         {
             _logger = logger;
             _configuration = configuration;
             _usuarioService = usuarioService;
             _usuarioRepository = usuarioRepository;
             _unitOfWork = unitOfWork;
+            _eventPublisher = eventPublisher;
         }
 
         public async Task<DomainNotificationsResult<UserTokenViewModel>> Login(LoginDTO loginDTO)
@@ -65,6 +70,8 @@ namespace FCG.Application.Services
                 {
                     Token = token
                 };
+
+                await _eventPublisher.PublishAsync(new UsuarioAutenticadoEvent(usuario.Id, usuario.Email));
 
                 _logger.LogInformation("Login realizado com sucesso para o usuário: {email}", loginDTO.EmailUsuario);
             }

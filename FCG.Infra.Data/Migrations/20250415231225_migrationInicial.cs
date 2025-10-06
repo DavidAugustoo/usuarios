@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -26,11 +27,30 @@ namespace FCG.Infra.Data.Migrations
                 {
                     table.PrimaryKey("PK_Usuario", x => x.Id);
                 });
+
+            migrationBuilder.CreateTable(
+                name: "StoredEvent",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    EventType = table.Column<string>(type: "nvarchar(250)", maxLength: 250, nullable: false),
+                    AggregateId = table.Column<int>(type: "int", nullable: false),
+                    Data = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Timestamp = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Version = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_StoredEvent", x => x.Id);
+                });
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(
+                name: "StoredEvent");
+
             migrationBuilder.DropTable(
                 name: "Usuario");
         }

@@ -8,11 +8,14 @@ namespace FCG.Infra.Data.Context
     {
         public ApplicationDbContext(DbContextOptions options) : base(options) { }
         public DbSet<Usuario> Usuario { get; set; }
-        
+        public DbSet<StoredEvent> StoredEvent { get; set; }
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
             builder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
             _ = new UsuarioConfiguration(builder);
-        }    }
+            _ = new StoredEventConfiguration(builder);
+        }
+    }
 }
