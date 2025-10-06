@@ -2,6 +2,7 @@
 using FCG.Application.DTOs;
 using FCG.Application.Services;
 using FCG.Domain.Entities;
+using FCG.Domain.EventSourcing;
 using FCG.Domain.Interfaces;
 using FCG.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
@@ -23,8 +24,9 @@ public class UsuarioServiceTests
         var mockLogger = new Mock<ILogger<UsuarioService>>();
         var mockUow = new Mock<IUnitOfWork>();
         var mockMapper = new Mock<IMapper>();
+        var eventPublisher = new Mock<IEventPublisher>();
 
-        var usuarioService = new UsuarioService(mockRepo.Object, mockLogger.Object, mockUow.Object, mockMapper.Object);
+        var usuarioService = new UsuarioService(mockRepo.Object, mockLogger.Object, mockUow.Object, mockMapper.Object, eventPublisher.Object);
 
         var dto = new UsuarioDTO
         {
