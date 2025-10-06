@@ -72,7 +72,14 @@ namespace FCG.Application.Services
                 EnsureNome(usuario);
 
                 await _usuarioRepository.Incluir(usuario);
-                await _unitOfWork.Commit();
+                var commitResult = await _unitOfWork.Commit();
+
+                if (!commitResult)
+                {
+                    _logger.LogError("Falha ao salvar usuário no banco de dados: {email}", usuarioDTO.Email);
+                    resultNotifications.Notifications.Add("Não foi possível salvar o usuário.");
+                    return resultNotifications;
+                }
 
                 await _eventPublisher.PublishAsync(new UsuarioCriadoEvent(usuario.Id, usuario.Nome,
                     usuario.EmailUsuario.EmailAddress, usuario.IsAdmin));
@@ -122,7 +129,14 @@ namespace FCG.Application.Services
                 EnsureNome(usuario);
 
                 _usuarioRepository.Alterar(usuario);
-                await _unitOfWork.Commit();
+                var commitResult = await _unitOfWork.Commit();
+
+                if (!commitResult)
+                {
+                    _logger.LogError("Falha ao persistir alterações do usuário: {id}", usuarioDTO.Id);
+                    resultNotifications.Notifications.Add("Não foi possível alterar o usuário.");
+                    return resultNotifications;
+                }
 
                 await _eventPublisher.PublishAsync(new UsuarioAlteradoEvent(usuario.Id, usuario.Nome,
                     usuario.EmailUsuario.EmailAddress, usuario.IsAdmin));
@@ -156,7 +170,14 @@ namespace FCG.Application.Services
                     return resultNotifications;
                 }
 
-                await _unitOfWork.Commit();
+                var commitResult = await _unitOfWork.Commit();
+
+                if (!commitResult)
+                {
+                    _logger.LogError("Falha ao excluir usuário no banco de dados: {id}", id);
+                    resultNotifications.Notifications.Add("Não foi possível excluir o usuário.");
+                    return resultNotifications;
+                }
 
                 await _eventPublisher.PublishAsync(new UsuarioExcluidoEvent(id));
 

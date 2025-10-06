@@ -156,7 +156,14 @@ namespace FCG.Application.Services
                 usuario.AlterarSenha(passwordHash, passwordSalt);
 
                 _usuarioRepository.Alterar(usuario);
-                await _unitOfWork.Commit();
+                var commitResult = await _unitOfWork.Commit();
+
+                if (!commitResult)
+                {
+                    _logger.LogError("Falha ao salvar nova senha temporária no banco de dados: {email}", email);
+                    resultNotifications.Notifications.Add("Não foi possível atualizar a senha do usuário.");
+                    return resultNotifications;
+                }
 
                 resultNotifications.Result = novaSenha;
 
